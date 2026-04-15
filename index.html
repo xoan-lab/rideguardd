@@ -89,15 +89,30 @@
     }
 
     .screen {
-      position: absolute;
-      inset: 0;
-      display: none;
-      padding: 10px 14px 16px;
-      overflow-y: auto;
-      background: var(--screen);
-    }
+  position: absolute;
+  inset: 0;
+  padding: 10px 14px 16px;
+  overflow-y: auto;
+  background: var(--screen);
 
-    .screen.active { display: block; }
+  transform: translateX(100%);
+  transition: transform .35s cubic-bezier(.4,0,.2,1);
+  pointer-events: none;
+}
+
+    .screen.active {
+  transform: translateX(0);
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.screen.slide-out-left {
+  transform: translateX(-100%);
+}
+
+.screen.slide-out-right {
+  transform: translateX(100%);
+}
 
     .toprow {
       display: flex;
