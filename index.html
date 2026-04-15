@@ -1187,7 +1187,13 @@
       els.callingOverlay.classList.remove('show');
       toast('Call screen closed');
     }
-
+function playAlertSound() {
+  const audio = new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg');
+  audio.volume = 1.0;
+  audio.play().catch(() => {
+    console.log('Audio autoplay blocked until user interaction');
+  });
+}
     function startSimulationTest(reason = 'Possible accident or health emergency detected') {
       if (!state.simulationCountdownEnabled) {
         toast('Simulation countdown is OFF');
@@ -1196,6 +1202,7 @@
       cancelEmergencyOverlay();
       countdownLeft = 10;
       showEmergencyOverlay(reason, countdownLeft);
+      playAlertSound();
       addActivity('Emergency countdown started');
       toast('Emergency countdown started');
       if (navigator.vibrate) navigator.vibrate([200,100,200,100,300]);
