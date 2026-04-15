@@ -1,587 +1,1448 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Bell,
-  Bike,
-  ChevronRight,
-  Clock3,
-  Gauge,
-  HeartPulse,
-  Home,
-  MapPin,
-  Phone,
-  Radio,
-  Settings,
-  Shield,
-  User,
-  Users,
-  Satellite,
-  History,
-  Siren,
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RideGuard AI</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      --bg: #efd8d6;
+      --phone: #0a0a0a;
+      --screen: #f6f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --blue: #3b82f6;
+      --blue-soft: #eaf2ff;
+      --green: #16a34a;
+      --green-soft: #eaf9ef;
+      --orange: #f97316;
+      --orange-soft: #fff3ea;
+      --red: #e45845;
+      --red-dark: #c93c2d;
+      --indigo: #4f46e5;
+      --indigo-soft: #eef2ff;
+      --shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+    }
 
-const contactsSeed = [
-  { id: 1, name: 'Mom', phone: '+84 123 456 789', status: 'Primary' },
-  { id: 2, name: 'Linh', phone: '+84 912 555 222', status: 'Backup' },
-  { id: 3, name: 'Bryan', phone: '+84 905 111 444', status: 'Backup' },
-];
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      font-family: Inter, Arial, sans-serif;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: var(--text);
+    }
 
-const activitiesSeed = [
-  { id: 1, type: 'Ride started', time: '9:10 AM' },
-  { id: 2, type: 'GPS connected', time: '9:11 AM' },
-  { id: 3, type: 'Safety check completed', time: '9:12 AM' },
-];
+    .phone-shell {
+      width: 414px;
+      background: var(--phone);
+      padding: 12px;
+      border-radius: 46px;
+      position: relative;
+      box-shadow: 0 30px 60px rgba(0,0,0,.28);
+    }
 
-function StatPill({ icon: Icon, value, label, tone = 'blue' }) {
-  const tones = {
-    blue: 'bg-blue-50 text-blue-700',
-    green: 'bg-emerald-50 text-emerald-700',
-    orange: 'bg-orange-50 text-orange-700',
-  };
+    .notch {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 162px;
+      height: 30px;
+      background: #000;
+      border-bottom-left-radius: 18px;
+      border-bottom-right-radius: 18px;
+      z-index: 50;
+    }
 
-  return (
-    <div className="flex items-center gap-3 rounded-2xl bg-white/90 px-3 py-3 shadow-sm ring-1 ring-black/5">
-      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone]}`}>
-        <Icon className="h-5 w-5" />
+    .phone-screen {
+      width: 390px;
+      height: 844px;
+      border-radius: 34px;
+      overflow: hidden;
+      background: var(--screen);
+      position: relative;
+    }
+
+    .statusbar {
+      height: 44px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 18px 0;
+      font-size: 13px;
+      font-weight: 700;
+      position: relative;
+      z-index: 10;
+    }
+
+    .screens {
+      position: absolute;
+      inset: 44px 0 0 0;
+      overflow: hidden;
+    }
+
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: none;
+      padding: 10px 14px 16px;
+      overflow-y: auto;
+      background: var(--screen);
+    }
+
+    .screen.active { display: block; }
+
+    .toprow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-size: 18px;
+    }
+
+    .title {
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1;
+    }
+
+    .icon-btn {
+      border: 0;
+      background: transparent;
+      font-size: 20px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .badge-dot {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #ef4444;
+      border: 2px solid var(--screen);
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: white;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: 0 4px 10px rgba(15,23,42,.05);
+    }
+
+    .chip.green { background: var(--green-soft); color: #166534; }
+    .chip.blue { color: var(--blue); }
+    .chip.orange { background: var(--orange-soft); color: var(--orange); }
+    .dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; }
+
+    .card {
+      background: var(--card);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .map-card { margin-top: 12px; }
+    .map-wrap { position: relative; height: 220px; }
+    #map { position: absolute; inset: 0; z-index: 1; }
+
+    .map-protect {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 500;
+      background: rgba(255,255,255,.95);
+      border-radius: 14px;
+      padding: 10px 12px;
+      box-shadow: 0 10px 18px rgba(15,23,42,.08);
+    }
+
+    .map-protect strong { display: block; color: var(--blue); font-size: 15px; }
+    .map-protect small { color: var(--muted); font-size: 11px; }
+
+    .pulse {
+  display: none;
+}
+
+    .map-stats {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      z-index: 500;
+    }
+
+    .mini-stat {
+      background: rgba(255,255,255,.96);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      box-shadow: 0 8px 16px rgba(15,23,42,.08);
+    }
+
+    .mini-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .mini-icon.blue { background: var(--blue-soft); color: var(--blue); }
+    .mini-icon.green { background: var(--green-soft); color: var(--green); }
+    .mini-stat strong { display: block; font-size: 14px; }
+    .mini-stat span { display: block; font-size: 11px; color: var(--muted); }
+
+    .sos-card {
+      margin-top: 12px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, var(--red), var(--red-dark));
+      color: white;
+      padding: 14px;
+      box-shadow: 0 14px 28px rgba(228,88,69,.28);
+    }
+
+    .sos-title {
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+
+    .sos-sub { margin-top: 4px; font-size: 12px; opacity: .92; }
+
+    .slider {
+      margin-top: 12px;
+      height: 52px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.98);
+      overflow: hidden;
+      position: relative;
+      user-select: none;
+    }
+
+    .slider-text {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--red-dark);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .slider-knob {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      background: var(--red);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      cursor: grab;
+      touch-action: none;
+      z-index: 2;
+    }
+
+    .section-header {
+      margin-top: 16px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .section-title { font-size: 22px; font-weight: 800; }
+    .section-link { font-size: 12px; font-weight: 700; color: var(--blue); cursor: pointer; }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .action {
+      border: 0;
+      cursor: pointer;
+      background: white;
+      border-radius: 18px;
+      padding: 12px 8px 10px;
+      box-shadow: 0 8px 16px rgba(15,23,42,.06);
+      text-align: center;
+    }
+
+    .action-icon {
+      width: 42px;
+      height: 42px;
+      margin: 0 auto 8px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+    }
+
+    .bg-blue { background: var(--blue-soft); color: var(--blue); }
+    .bg-indigo { background: var(--indigo-soft); color: var(--indigo); }
+    .bg-orange { background: var(--orange-soft); color: var(--orange); }
+    .bg-green { background: var(--green-soft); color: var(--green); }
+
+    .action-title { font-size: 12px; font-weight: 700; line-height: 1.1; }
+    .action-tag {
+      display: inline-block;
+      margin-top: 5px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .content-card {
+      background: white;
+      border-radius: 22px;
+      box-shadow: 0 8px 16px rgba(15,23,42,.06);
+      padding: 14px;
+      margin-top: 12px;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .subtle { color: var(--muted); font-size: 12px; }
+
+    .pill-btn {
+      border: 0;
+      cursor: pointer;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .ride-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .ride-stat {
+      background: #f8fafc;
+      border-radius: 18px;
+      text-align: center;
+      padding: 12px 8px;
+    }
+
+    .ride-stat .emoji { font-size: 18px; }
+    .ride-stat strong { display: block; margin-top: 6px; font-size: 19px; }
+    .ride-stat span { font-size: 11px; color: var(--muted); }
+
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 0;
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    .list-item:last-child { border-bottom: 0; }
+    .list-left { display: flex; align-items: center; gap: 10px; }
+
+    .list-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-size: 15px;
+    }
+
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: #f8fafc;
+      margin-bottom: 10px;
+    }
+
+    .switch {
+      width: 46px;
+      height: 28px;
+      border-radius: 999px;
+      background: #cbd5e1;
+      position: relative;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .switch::after {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 3px;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: white;
+      transition: transform .2s ease;
+    }
+
+    .switch.on { background: var(--green); }
+    .switch.on::after { transform: translateX(18px); }
+
+    .bottom-nav {
+      position: sticky;
+      bottom: 0;
+      margin-top: 12px;
+      padding: 10px 0 4px;
+      border-top: 1px solid var(--line);
+      background: linear-gradient(to top, rgba(246,247,251,1), rgba(246,247,251,.96));
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .nav-item {
+      border: 0;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+      padding: 4px 0;
+    }
+
+    .nav-item .icon { display: block; font-size: 18px; margin-bottom: 4px; }
+    .nav-item.active { color: var(--blue); }
+
+    .toast {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #111827;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s ease, transform .25s ease;
+      z-index: 99999;
+      box-shadow: 0 16px 34px rgba(0,0,0,.28);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(6px);
+    }
+
+    .emergency-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 9999;
+      background: linear-gradient(180deg, #c62828 0%, #8e1b1b 100%);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      animation: redFlash 1.15s infinite;
+    }
+
+    .emergency-overlay.show { display: flex; }
+
+    .emergency-panel {
+      width: 100%;
+      text-align: center;
+      color: white;
+    }
+
+    .emergency-icon {
+      font-size: 46px;
+      margin-bottom: 12px;
+      animation: pulseAlert 1.2s infinite;
+    }
+
+    .emergency-title {
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -.02em;
+    }
+
+    .emergency-subtitle {
+      margin-top: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: rgba(255,255,255,.9);
+    }
+
+    .emergency-circle {
+      width: 220px;
+      height: 220px;
+      margin: 28px auto 20px;
+      border-radius: 999px;
+      border: 10px solid rgba(255,255,255,.22);
+      background: rgba(255,255,255,.08);
+      box-shadow: 0 0 0 14px rgba(255,255,255,.08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      animation: pulseRing 1.4s infinite ease-in-out;
+    }
+
+    .emergency-count {
+      font-size: 78px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .emergency-seconds {
+      margin-top: 8px;
+      font-size: 15px;
+      color: rgba(255,255,255,.9);
+    }
+
+    .emergency-text {
+      max-width: 290px;
+      margin: 0 auto;
+      font-size: 14px;
+      line-height: 1.5;
+      color: rgba(255,255,255,.92);
+    }
+
+    .emergency-buttons {
+      margin-top: 28px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .emergency-btn {
+      width: 100%;
+      border: 0;
+      border-radius: 18px;
+      padding: 15px 16px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .emergency-safe {
+      background: white;
+      color: #111827;
+    }
+
+    .emergency-sos {
+      background: rgba(255,255,255,.12);
+      color: white;
+      border: 1px solid rgba(255,255,255,.22);
+    }
+
+    @keyframes pulseAlert {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+
+    @keyframes pulseRing {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 14px rgba(255,255,255,.08), 0 0 0 0 rgba(255,255,255,.1);
+      }
+      50% {
+        transform: scale(1.03);
+        box-shadow: 0 0 0 18px rgba(255,255,255,.08), 0 0 0 14px rgba(255,255,255,.05);
+      }
+    }
+
+    @keyframes redFlash {
+      0%, 100% { background: linear-gradient(180deg, #c62828 0%, #8e1b1b 100%); }
+      50% { background: linear-gradient(180deg, #e53935 0%, #991b1b 100%); }
+    }
+  </style>
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+
+  <div class="phone-shell">
+    <div class="notch"></div>
+    <div class="phone-screen" id="phoneScreen">
+      <div class="emergency-overlay" id="emergencyOverlay">
+        <div class="emergency-panel">
+          <div class="emergency-icon">🚨</div>
+          <div class="emergency-title">Emergency Detected</div>
+          <div class="emergency-subtitle" id="emergencyReason">Possible accident or health emergency detected</div>
+          <div class="emergency-circle">
+            <div class="emergency-count" id="emergencyCount">10</div>
+            <div class="emergency-seconds">seconds</div>
+          </div>
+          <div class="emergency-text">RideGuard will send an SOS alert to your emergency contact unless you cancel.</div>
+          <div class="emergency-buttons">
+            <button class="emergency-btn emergency-safe" onclick="cancelEmergencyOverlay()">I'm Safe</button>
+            <button class="emergency-btn emergency-sos" onclick="forceSendSOS()">Send SOS Now</button>
+          </div>
+        </div>
       </div>
-      <div>
-        <div className="text-[15px] font-bold text-slate-800">{value}</div>
-        <div className="text-[11px] text-slate-500">{label}</div>
+
+      <div class="emergency-overlay" id="callingOverlay">
+        <div class="emergency-panel">
+          <div class="emergency-icon">📞</div>
+          <div class="emergency-title">Calling Contact...</div>
+          <div class="emergency-subtitle" id="callingReason">Connecting to your primary emergency contact now</div>
+          <div class="emergency-circle" style="width:190px;height:190px;">
+            <div class="emergency-count" style="font-size:30px;line-height:1.2;" id="callingName">Mom</div>
+            <div class="emergency-seconds" id="callingPhone">+84 123 456 789</div>
+          </div>
+          <div class="emergency-text">Stay calm. RideGuard is notifying your trusted contact and preparing emergency assistance.</div>
+          <div class="emergency-buttons">
+            <button class="emergency-btn emergency-safe" onclick="endCallingOverlay()">End Call</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="statusbar">
+        <span>9:41</span>
+        <span>◉◉◉ ▂▃▅</span>
+      </div>
+
+      <div class="screens">
+        <section class="screen active" id="screen-home">
+          <div class="toprow">
+            <div class="brand">
+              <div class="logo">🛡️</div>
+              <div class="title">Ride Guard</div>
+            </div>
+            <button class="icon-btn" onclick="openScreen('settings')">🔔<span class="badge-dot"></span></button>
+          </div>
+
+          <div class="chips">
+            <div class="chip green"><span class="dot"></span>System Active</div>
+            <div class="chip blue"><span class="dot"></span>GPS Connected</div>
+            <div class="chip orange" id="motionChip">📳 Shake Sensor Off</div>
+          </div>
+
+          <div class="card map-card">
+            <div class="map-wrap">
+              <div id="map"></div>
+              <div class="map-protect">
+                <strong>You're Protected</strong>
+                <small id="bannerText">Real-time monitoring is ON</small>
+              </div>
+              <div class="pulse"></div>
+              <div class="map-stats">
+                <div class="mini-stat">
+                  <div class="mini-icon blue">⦿</div>
+                  <div>
+                    <strong id="speedValue">52 km/h</strong>
+                    <span>Current Speed</span>
+                  </div>
+                </div>
+                <div class="mini-stat">
+                  <div class="mini-icon green">✳</div>
+                  <div>
+                    <strong id="satValue">12 Satellites</strong>
+                    <span>GPS Signal</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sos-card">
+            <div class="sos-title">🚨 Emergency SOS</div>
+            <div class="sos-sub">Long press to call for help & alert your contacts</div>
+            <div class="slider" id="sosSlider">
+              <div class="slider-text" id="sliderText">Slide to Send SOS</div>
+              <div class="slider-knob" id="sliderKnob">SOS</div>
+            </div>
+          </div>
+
+          <div class="section-header">
+            <div class="section-title">Quick Actions</div>
+            <div class="section-link" onclick="openScreen('activities')">View All</div>
+          </div>
+
+          <div class="actions">
+            <button class="action" onclick="openScreen('contacts')">
+              <div class="action-icon bg-blue">📞</div>
+              <div class="action-title">Call Contacts</div>
+              <div class="action-tag">3 People</div>
+            </button>
+            <button class="action" onclick="openScreen('safety')">
+              <div class="action-icon bg-indigo">🛡️</div>
+              <div class="action-title">Safety Check</div>
+              <div class="action-tag">Share Live</div>
+            </button>
+            <button class="action" onclick="simulateRide()">
+              <div class="action-icon bg-orange">🏍️</div>
+              <div class="action-title">Ride Record</div>
+              <div class="action-tag">Recording</div>
+            </button>
+            <button class="action" onclick="openScreen('settings')">
+              <div class="action-icon bg-green">⚙️</div>
+              <div class="action-title">Settings</div>
+              <div class="action-tag">Customize</div>
+            </button>
+          </div>
+
+          <div class="content-card">
+            <div class="header-row">
+              <div>
+                <div style="font-size:18px;font-weight:800;">👥 My Safe Contacts</div>
+                <div class="subtle">3 people will be notified in case of emergency</div>
+              </div>
+              <button class="pill-btn" onclick="openScreen('contacts')">Manage</button>
+            </div>
+          </div>
+
+          <div class="content-card">
+            <div class="header-row">
+              <div style="font-size:22px;font-weight:800;">Today's Ride</div>
+              <div class="section-link" onclick="openScreen('activities')">View History</div>
+            </div>
+            <div class="ride-stats">
+              <div class="ride-stat">
+                <div class="emoji">📍</div>
+                <strong id="distanceValue">24.8 km</strong>
+                <span>Distance</span>
+              </div>
+              <div class="ride-stat">
+                <div class="emoji">🕒</div>
+                <strong id="durationValue">35 min</strong>
+                <span>Duration</span>
+              </div>
+              <div class="ride-stat">
+                <div class="emoji">🏍️</div>
+                <strong id="avgSpeedValue">42 km/h</strong>
+                <span>Avg Speed</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bottom-nav">
+            <button class="nav-item active" data-screen="home" onclick="openScreen('home')"><span class="icon">🏠</span>Home</button>
+            <button class="nav-item" data-screen="activities" onclick="openScreen('activities')"><span class="icon">🧾</span>Activities</button>
+            <button class="nav-item" data-screen="safety" onclick="openScreen('safety')"><span class="icon">🛡️</span>Safety</button>
+            <button class="nav-item" data-screen="profile" onclick="openScreen('profile')"><span class="icon">👤</span>Profile</button>
+          </div>
+        </section>
+
+        <section class="screen" id="screen-activities">
+          <div class="toprow">
+            <button class="pill-btn" onclick="openScreen('home')">← Back</button>
+            <div class="section-title" style="font-size:24px;">Recent Activity</div>
+            <div style="width:60px"></div>
+          </div>
+          <div class="content-card" id="activityList"></div>
+          <div class="bottom-nav">
+            <button class="nav-item" data-screen="home" onclick="openScreen('home')"><span class="icon">🏠</span>Home</button>
+            <button class="nav-item active" data-screen="activities" onclick="openScreen('activities')"><span class="icon">🧾</span>Activities</button>
+            <button class="nav-item" data-screen="safety" onclick="openScreen('safety')"><span class="icon">🛡️</span>Safety</button>
+            <button class="nav-item" data-screen="profile" onclick="openScreen('profile')"><span class="icon">👤</span>Profile</button>
+          </div>
+        </section>
+
+        <section class="screen" id="screen-safety">
+          <div class="toprow">
+            <button class="pill-btn" onclick="openScreen('home')">← Back</button>
+            <div class="section-title" style="font-size:24px;">Safety</div>
+            <div style="width:60px"></div>
+          </div>
+          <div class="content-card">
+            <div class="toggle-row">
+              <div>
+                <strong>System Active</strong>
+                <div class="subtle">Continuous protection is running</div>
+              </div>
+              <div class="switch on" id="systemSwitch" onclick="toggleSystem()"></div>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <strong>GPS Connected</strong>
+                <div class="subtle">Use live location and speed</div>
+              </div>
+              <div class="switch on" id="gpsSwitch" onclick="toggleGps()"></div>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <strong>Simulation Countdown</strong>
+                <div class="subtle">Turn test countdown on or off</div>
+              </div>
+              <div class="switch on" id="simSwitch" onclick="toggleSimulation()"></div>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <strong>Shake Sensor</strong>
+                <div class="subtle">Detect strong impact-like motion</div>
+              </div>
+              <button class="pill-btn" onclick="requestMotionAccess()">Enable</button>
+            </div>
+            <div style="display:grid;gap:10px;margin-top:12px;">
+              <button class="pill-btn" style="padding:14px;border-radius:16px;" onclick="startSimulationTest('Manual safety test triggered')">Start Simulate Test Countdown</button>
+              <button class="pill-btn" style="padding:14px;border-radius:16px;background:#fee2e2;color:#b91c1c;" onclick="shareSafetyCheck()">Share Safety Check</button>
+            </div>
+          </div>
+          <div class="bottom-nav">
+            <button class="nav-item" data-screen="home" onclick="openScreen('home')"><span class="icon">🏠</span>Home</button>
+            <button class="nav-item" data-screen="activities" onclick="openScreen('activities')"><span class="icon">🧾</span>Activities</button>
+            <button class="nav-item active" data-screen="safety" onclick="openScreen('safety')"><span class="icon">🛡️</span>Safety</button>
+            <button class="nav-item" data-screen="profile" onclick="openScreen('profile')"><span class="icon">👤</span>Profile</button>
+          </div>
+        </section>
+
+        <section class="screen" id="screen-contacts">
+          <div class="toprow">
+            <button class="pill-btn" onclick="openScreen('home')">← Back</button>
+            <div class="section-title" style="font-size:24px;">Safe Contacts</div>
+            <div style="width:60px"></div>
+          </div>
+          <div class="content-card" id="contactsList"></div>
+          <div class="content-card">
+            <button class="pill-btn" style="width:100%;padding:14px;border-radius:16px;" onclick="callPrimaryContact()">Call Primary Contact</button>
+          </div>
+        </section>
+
+        <section class="screen" id="screen-profile">
+          <div class="toprow">
+            <button class="pill-btn" onclick="openScreen('home')">← Back</button>
+            <div class="section-title" style="font-size:24px;">Profile</div>
+            <div style="width:60px"></div>
+          </div>
+          <div class="content-card">
+            <div style="display:flex;gap:14px;align-items:center;">
+              <div style="width:56px;height:56px;border-radius:999px;background:var(--blue-soft);display:grid;place-items:center;font-size:24px;color:var(--blue);">👤</div>
+              <div>
+                <div style="font-size:20px;font-weight:800;">RideGuard User</div>
+                <div class="subtle">Hanoi, Vietnam</div>
+              </div>
+            </div>
+            <div style="display:grid;gap:10px;margin-top:14px;">
+              <div class="toggle-row">
+                <div>
+                  <strong>Current City</strong>
+                  <div class="subtle">Map defaults to Hanoi for the prototype</div>
+                </div>
+                <div style="font-weight:700;color:var(--blue);">Hanoi</div>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <strong>Primary Contact</strong>
+                  <div class="subtle" id="profilePrimaryContact">Mom</div>
+                </div>
+                <button class="pill-btn" onclick="openScreen('contacts')">Change</button>
+              </div>
+            </div>
+          </div>
+          <div class="bottom-nav">
+            <button class="nav-item" data-screen="home" onclick="openScreen('home')"><span class="icon">🏠</span>Home</button>
+            <button class="nav-item" data-screen="activities" onclick="openScreen('activities')"><span class="icon">🧾</span>Activities</button>
+            <button class="nav-item" data-screen="safety" onclick="openScreen('safety')"><span class="icon">🛡️</span>Safety</button>
+            <button class="nav-item active" data-screen="profile" onclick="openScreen('profile')"><span class="icon">👤</span>Profile</button>
+          </div>
+        </section>
+
+        <section class="screen" id="screen-settings">
+          <div class="toprow">
+            <button class="pill-btn" onclick="openScreen('home')">← Back</button>
+            <div class="section-title" style="font-size:24px;">Settings</div>
+            <div style="width:60px"></div>
+          </div>
+          <div class="content-card">
+            <div class="toggle-row">
+              <div>
+                <strong>Enable Motion Permission</strong>
+                <div class="subtle">Needed for shake sensor on mobile</div>
+              </div>
+              <button class="pill-btn" onclick="requestMotionAccess()">Enable</button>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <strong>Open Safety Test</strong>
+                <div class="subtle">Jump to safety tools</div>
+              </div>
+              <button class="pill-btn" onclick="openScreen('safety')">Open</button>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <strong>Center Map to Hanoi</strong>
+                <div class="subtle">Return map focus to Hanoi center</div>
+              </div>
+              <button class="pill-btn" onclick="centerMapHanoi()">Center</button>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
-  );
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const state = {
+      activeScreen: 'home',
+      systemActive: true,
+      gpsConnected: true,
+      simulationCountdownEnabled: true,
+      motionEnabled: false,
+      banner: 'Real-time monitoring is ON',
+      speed: 52,
+      satellites: 12,
+      distance: 24.8,
+      duration: 35,
+      avgSpeed: 42,
+      selectedContact: 0,
+      contacts: [
+        { name: 'Mom', phone: '+84 123 456 789', status: 'Primary' },
+        { name: 'Bu', phone: '+84 912 555 222', status: 'Backup' },
+        { name: 'Bryan', phone: '+84 905 111 444', status: 'Backup' }
+      ],
+      activities: [
+        { text: 'Ride started', time: '9:10 AM' },
+        { text: 'GPS connected', time: '9:11 AM' },
+        { text: 'Safety check completed', time: '9:12 AM' }
+      ]
+    };
+
+    const els = {
+      bannerText: document.getElementById('bannerText'),
+      speedValue: document.getElementById('speedValue'),
+      satValue: document.getElementById('satValue'),
+      distanceValue: document.getElementById('distanceValue'),
+      durationValue: document.getElementById('durationValue'),
+      avgSpeedValue: document.getElementById('avgSpeedValue'),
+      motionChip: document.getElementById('motionChip'),
+      activityList: document.getElementById('activityList'),
+      contactsList: document.getElementById('contactsList'),
+      sliderKnob: document.getElementById('sliderKnob'),
+      sliderText: document.getElementById('sliderText'),
+      systemSwitch: document.getElementById('systemSwitch'),
+      gpsSwitch: document.getElementById('gpsSwitch'),
+      simSwitch: document.getElementById('simSwitch'),
+      profilePrimaryContact: document.getElementById('profilePrimaryContact'),
+      emergencyOverlay: document.getElementById('emergencyOverlay'),
+      emergencyReason: document.getElementById('emergencyReason'),
+      emergencyCount: document.getElementById('emergencyCount'),
+      callingOverlay: document.getElementById('callingOverlay'),
+      callingName: document.getElementById('callingName'),
+      callingPhone: document.getElementById('callingPhone'),
+      callingReason: document.getElementById('callingReason'),
+      phoneScreen: document.getElementById('phoneScreen')
+    };
+
+    let map, marker, routeLine, hospitalMarker;
+    let toastTimer = null;
+    let countdownTimer = null;
+    let countdownLeft = 10;
+    let tapCount = 0;
+    let tapTimer = null;
+    let shakeCooldown = false;
+
+    function nowTime() {
+      return new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+
+    function toast(message) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+    }
+
+    function addActivity(text) {
+      state.activities.unshift({ text, time: nowTime() });
+      state.activities = state.activities.slice(0, 10);
+      renderActivities();
+    }
+
+    function render() {
+      els.bannerText.textContent = state.banner;
+      els.speedValue.textContent = `${state.speed} km/h`;
+      els.satValue.textContent = `${state.satellites} Satellites`;
+      els.distanceValue.textContent = `${state.distance.toFixed(1)} km`;
+      els.durationValue.textContent = `${state.duration} min`;
+      els.avgSpeedValue.textContent = `${state.avgSpeed} km/h`;
+      els.motionChip.textContent = state.motionEnabled ? '📳 Shake Sensor On' : '📳 Shake Sensor Off';
+      els.systemSwitch.classList.toggle('on', state.systemActive);
+      els.gpsSwitch.classList.toggle('on', state.gpsConnected);
+      els.simSwitch.classList.toggle('on', state.simulationCountdownEnabled);
+      els.profilePrimaryContact.textContent = state.contacts[state.selectedContact].name;
+      renderActivities();
+      renderContacts();
+    }
+
+    function openScreen(name) {
+      state.activeScreen = name;
+      document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+      document.getElementById(`screen-${name}`).classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.screen === name);
+      });
+    }
+
+    function renderActivities() {
+      if (!els.activityList) return;
+      els.activityList.innerHTML = '';
+      state.activities.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'list-item';
+        row.innerHTML = `
+          <div class="list-left">
+            <div class="list-badge">📡</div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#111827;">${item.text}</div>
+              <div style="font-size:11px;color:#6b7280;">RideGuard event log</div>
+            </div>
+          </div>
+          <div style="font-size:11px;color:#6b7280;">${item.time}</div>
+        `;
+        els.activityList.appendChild(row);
+      });
+    }
+
+    function renderContacts() {
+      if (!els.contactsList) return;
+      els.contactsList.innerHTML = '';
+      state.contacts.forEach((contact, index) => {
+        const item = document.createElement('button');
+        item.className = 'list-item';
+        item.style.width = '100%';
+        item.style.background = index === state.selectedContact ? '#eaf2ff' : 'transparent';
+        item.style.border = index === state.selectedContact ? '1px solid #bfdbfe' : '0';
+        item.style.borderRadius = '16px';
+        item.style.padding = '12px';
+        item.style.cursor = 'pointer';
+        item.innerHTML = `
+          <div class="list-left">
+            <div class="list-badge">👤</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:#111827;">${contact.name}</div>
+              <div style="font-size:12px;color:#6b7280;">${contact.phone}</div>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:${index === state.selectedContact ? '#2563eb' : '#94a3b8'};">${index === state.selectedContact ? 'Selected' : contact.status}</div>
+        `;
+        item.onclick = () => {
+          state.selectedContact = index;
+          state.banner = `Primary contact set to ${contact.name}`;
+          addActivity(`Primary contact changed to ${contact.name}`);
+          render();
+          toast(`Primary contact set to ${contact.name}`);
+        };
+        els.contactsList.appendChild(item);
+      });
+    }
+
+    function simulateRide() {
+      state.speed = state.speed >= 64 ? 28 : state.speed + 6;
+      state.satellites = state.satellites >= 16 ? 10 : state.satellites + 1;
+      state.distance += 1.4;
+      state.duration += 3;
+      state.avgSpeed = Math.round((state.avgSpeed + state.speed) / 2);
+      state.banner = 'Ride activity refreshed';
+      addActivity(`Speed updated to ${state.speed} km/h`);
+      if (map && marker) {
+        const nextLat = marker.getLatLng().lat + 0.0011;
+        const nextLng = marker.getLatLng().lng + 0.0012;
+        marker.setLatLng([nextLat, nextLng]);
+        map.panTo([nextLat, nextLng], { animate: true, duration: 1.2 });
+      }
+      render();
+      toast('Ride simulated');
+    }
+
+    function toggleSystem() {
+      state.systemActive = !state.systemActive;
+      state.banner = state.systemActive ? 'Real-time monitoring is ON' : 'System paused';
+      addActivity(state.systemActive ? 'System activated' : 'System paused');
+      render();
+      toast(state.banner);
+    }
+
+    function toggleGps() {
+      state.gpsConnected = !state.gpsConnected;
+      state.banner = state.gpsConnected ? 'GPS connected' : 'GPS disconnected';
+      addActivity(state.banner);
+      render();
+      toast(state.banner);
+    }
+
+    function toggleSimulation() {
+      state.simulationCountdownEnabled = !state.simulationCountdownEnabled;
+      if (!state.simulationCountdownEnabled) cancelEmergencyOverlay();
+      addActivity(state.simulationCountdownEnabled ? 'Simulation countdown enabled' : 'Simulation countdown disabled');
+      render();
+      toast(state.simulationCountdownEnabled ? 'Simulation countdown ON' : 'Simulation countdown OFF');
+    }
+
+    function callPrimaryContact() {
+      const contact = state.contacts[state.selectedContact];
+      state.banner = `Calling ${contact.name}...`;
+      addActivity(`Emergency call started to ${contact.name}`);
+      render();
+      toast(`Calling ${contact.name}`);
+      showCallingOverlay();
+    }
+
+    function shareSafetyCheck() {
+      state.banner = 'Safety check link shared';
+      addActivity('Safety check link shared');
+      render();
+      toast('Safety check sent');
+    }
+
+    function showEmergencyOverlay(reason = 'Possible accident or health emergency detected', seconds = 10) {
+      els.emergencyReason.textContent = reason;
+      els.emergencyCount.textContent = seconds;
+      els.emergencyOverlay.classList.add('show');
+    }
+
+    function hideEmergencyOverlay() {
+      els.emergencyOverlay.classList.remove('show');
+    }
+
+    function showCallingOverlay() {
+      const contact = state.contacts[state.selectedContact];
+      els.callingName.textContent = contact.name;
+      els.callingPhone.textContent = contact.phone;
+      els.callingReason.textContent = `Connecting to ${contact.name} after emergency response`;
+      els.callingOverlay.classList.add('show');
+    }
+
+    function endCallingOverlay() {
+      els.callingOverlay.classList.remove('show');
+      toast('Call screen closed');
+    }
+
+    function startSimulationTest(reason = 'Possible accident or health emergency detected') {
+      if (!state.simulationCountdownEnabled) {
+        toast('Simulation countdown is OFF');
+        return;
+      }
+      cancelEmergencyOverlay();
+      countdownLeft = 10;
+      showEmergencyOverlay(reason, countdownLeft);
+      addActivity('Emergency countdown started');
+      toast('Emergency countdown started');
+      if (navigator.vibrate) navigator.vibrate([200,100,200,100,300]);
+      countdownTimer = setInterval(() => {
+        countdownLeft -= 1;
+        els.emergencyCount.textContent = countdownLeft;
+        if (countdownLeft <= 0) {
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+          forceSendSOS();
+        }
+      }, 1000);
+    }
+
+    function cancelEmergencyOverlay() {
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+      hideEmergencyOverlay();
+      state.banner = 'Emergency cancelled by user';
+      render();
+    }
+
+    function forceSendSOS() {
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+      hideEmergencyOverlay();
+      const contact = state.contacts[state.selectedContact];
+      state.banner = `SOS sent to ${contact.name}`;
+      addActivity(`SOS alert sent to ${contact.name}`);
+      render();
+      toast(`SOS sent to ${contact.name}`);
+      if (navigator.vibrate) navigator.vibrate([250,100,250,100,500]);
+      showCallingOverlay();
+    }
+
+    function setupSlider() {
+      const knob = els.sliderKnob;
+      const max = 265;
+      let dragging = false;
+      let startX = 0;
+      let currentX = 0;
+
+      function onStart(clientX) {
+        dragging = true;
+        startX = clientX - currentX;
+        knob.style.transition = 'none';
+      }
+
+      function onMove(clientX) {
+        if (!dragging) return;
+        currentX = Math.max(0, Math.min(max, clientX - startX));
+        knob.style.transform = `translateX(${currentX}px)`;
+      }
+
+      function onEnd() {
+        if (!dragging) return;
+        dragging = false;
+        knob.style.transition = 'transform .2s ease';
+        if (currentX > 220) {
+          knob.style.transform = `translateX(${max}px)`;
+          els.sliderText.textContent = 'SOS Alert Sent';
+          startSimulationTest('Manual emergency trigger detected');
+          setTimeout(() => {
+            currentX = 0;
+            knob.style.transform = 'translateX(0px)';
+            els.sliderText.textContent = 'Slide to Send SOS';
+          }, 900);
+        } else {
+          currentX = 0;
+          knob.style.transform = 'translateX(0px)';
+        }
+      }
+
+      knob.addEventListener('mousedown', e => onStart(e.clientX));
+      window.addEventListener('mousemove', e => onMove(e.clientX));
+      window.addEventListener('mouseup', onEnd);
+      knob.addEventListener('touchstart', e => onStart(e.touches[0].clientX), { passive: true });
+      window.addEventListener('touchmove', e => onMove(e.touches[0].clientX), { passive: true });
+      window.addEventListener('touchend', onEnd);
+    }
+
+    async function requestMotionAccess() {
+      try {
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+          const permission = await DeviceMotionEvent.requestPermission();
+          if (permission !== 'granted') {
+            toast('Motion permission denied');
+            return;
+          }
+        }
+        state.motionEnabled = true;
+        state.banner = 'Shake sensor enabled';
+        addActivity('Shake sensor enabled');
+        render();
+        toast('Shake sensor enabled');
+        if (navigator.vibrate) navigator.vibrate([120,60,120]);
+      } catch (err) {
+        toast('Motion access unavailable');
+      }
+    }
+
+    function setupTripleTap() {
+      els.phoneScreen.addEventListener('click', (e) => {
+        if (e.target.closest('button') || e.target.closest('#map')) return;
+        tapCount++;
+        if (tapCount === 1) {
+          tapTimer = setTimeout(() => { tapCount = 0; }, 700);
+        }
+        if (tapCount === 3) {
+          clearTimeout(tapTimer);
+          tapCount = 0;
+          startSimulationTest('Manual emergency trigger detected');
+        }
+      });
+    }
+
+    window.addEventListener('devicemotion', (event) => {
+      if (!state.motionEnabled || !state.systemActive) return;
+      const acc = event.accelerationIncludingGravity || event.acceleration;
+      if (!acc) return;
+      const x = acc.x || 0;
+      const y = acc.y || 0;
+      const z = acc.z || 0;
+      const magnitude = Math.sqrt(x*x + y*y + z*z);
+      if (magnitude > 18 && !shakeCooldown) {
+        shakeCooldown = true;
+        state.banner = 'Strong shake detected';
+        addActivity(`Possible impact / shake event detected (${magnitude.toFixed(1)})`);
+        render();
+        toast('Strong shake detected');
+        if (navigator.vibrate) navigator.vibrate([160,80,160]);
+        if (state.simulationCountdownEnabled) startSimulationTest('Strong shake detected - possible impact');
+        setTimeout(() => { shakeCooldown = false; }, 1800);
+      }
+    });
+
+    function centerMapHanoi() {
+  if (!map || !marker) return;
+  const hanoi = [21.0285, 105.8542];
+  map.setView(hanoi, 14);
+  marker.setLatLng(hanoi);
+  drawHospitalRoute(hanoi);
+  state.banner = 'Map centered to Hanoi';
+  addActivity('Map centered to Hanoi');
+  render();
+  toast('Map centered to Hanoi');
 }
 
-function QuickAction({ icon: Icon, title, subtitle, color, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex min-w-[76px] flex-col items-center gap-2 rounded-2xl bg-slate-50 px-3 py-3 text-center transition hover:bg-slate-100"
-    >
-      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="text-[12px] font-semibold leading-tight text-slate-700">{title}</div>
-      <div className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500 shadow-sm ring-1 ring-slate-200">
-        {subtitle}
-      </div>
-    </button>
-  );
-}
-
-function BottomNav({ tab, setTab }) {
-  const items = [
-    { key: 'home', label: 'Home', icon: Home },
-    { key: 'activities', label: 'Activities', icon: History },
-    { key: 'safety', label: 'Safety', icon: Shield },
-    { key: 'profile', label: 'Profile', icon: User },
+function getNearestHospital(fromCoords) {
+  const hospitals = [
+    { name: 'Bach Mai Hospital', coords: [21.0008, 105.8426] },
+    { name: 'Viet Duc Hospital', coords: [21.0245, 105.8487] },
+    { name: 'Saint Paul Hospital', coords: [21.0335, 105.8352] },
+    { name: '108 Military Central Hospital', coords: [21.0184, 105.8622] },
+    { name: 'Hanoi Medical University Hospital', coords: [21.0029, 105.8284] }
   ];
 
-  return (
-    <div className="mt-4 grid grid-cols-4 border-t border-slate-200 pt-3">
-      {items.map((item) => {
-        const Icon = item.icon;
-        const active = tab === item.key;
-        return (
-          <button
-            key={item.key}
-            onClick={() => setTab(item.key)}
-            className="flex flex-col items-center gap-1 py-1"
-          >
-            <Icon className={`h-5 w-5 ${active ? 'text-blue-600' : 'text-slate-400'}`} />
-            <span className={`text-[11px] ${active ? 'font-semibold text-blue-600' : 'text-slate-400'}`}>
-              {item.label}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
+  let nearest = hospitals[0];
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  hospitals.forEach((hospital) => {
+    const dLat = fromCoords[0] - hospital.coords[0];
+    const dLng = fromCoords[1] - hospital.coords[1];
+    const distance = Math.sqrt((dLat * dLat) + (dLng * dLng));
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      nearest = hospital;
+    }
+  });
+
+  return nearest;
 }
 
-function SlideToSend({ onComplete, disabled }) {
-  const trackRef = useRef(null);
-  const [dragX, setDragX] = useState(0);
-  const [done, setDone] = useState(false);
+function drawHospitalRoute(fromCoords) {
+  if (!map) return;
 
-  const maxDrag = 220;
+  const hospital = getNearestHospital(fromCoords);
 
-  return (
-    <div className="mt-3 rounded-3xl bg-white px-3 py-2 shadow-inner">
-      <div ref={trackRef} className="relative h-12 overflow-hidden rounded-full bg-rose-50">
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-semibold text-rose-500">
-          {done ? 'SOS Alert Sent' : 'Slide to Send SOS'}
-        </div>
-        <motion.button
-          drag={disabled || done ? false : 'x'}
-          dragConstraints={{ left: 0, right: maxDrag }}
-          dragElastic={0}
-          onDrag={(_, info) => setDragX(Math.max(0, Math.min(maxDrag, info.offset.x)))}
-          onDragEnd={(_, info) => {
-            const passed = info.offset.x > 170;
-            if (passed) {
-              setDone(true);
-              setDragX(maxDrag);
-              onComplete();
-            } else {
-              setDragX(0);
-            }
-          }}
-          animate={{ x: dragX }}
-          className="absolute left-1 top-1 flex h-10 w-10 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg disabled:opacity-50"
-          disabled={disabled}
-        >
-          <Siren className="h-5 w-5" />
-        </motion.button>
-      </div>
-    </div>
-  );
+  if (routeLine) map.removeLayer(routeLine);
+  if (hospitalMarker) map.removeLayer(hospitalMarker);
+
+  routeLine = L.polyline([fromCoords, hospital.coords], {
+    color: '#e45845',
+    weight: 5,
+    opacity: 0.85,
+    dashArray: '10, 10'
+  }).addTo(map);
+
+  hospitalMarker = L.marker(hospital.coords)
+    .addTo(map)
+    .bindPopup(`Nearest hospital: ${hospital.name}`);
 }
 
-export default function RideGuardMobileUI() {
-  const [tab, setTab] = useState('home');
-  const [systemActive, setSystemActive] = useState(true);
-  const [gpsConnected, setGpsConnected] = useState(true);
-  const [speed, setSpeed] = useState(52);
-  const [satellites, setSatellites] = useState(12);
-  const [contacts, setContacts] = useState(contactsSeed);
-  const [activities, setActivities] = useState(activitiesSeed);
-  const [banner, setBanner] = useState('Real-time monitoring is ON');
-  const [showSosModal, setShowSosModal] = useState(false);
-  const [showManageContacts, setShowManageContacts] = useState(false);
-  const [selectedContactId, setSelectedContactId] = useState(1);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showNotification, setShowNotification] = useState(false);
-  const [sosSent, setSosSent] = useState(false);
+function initMap() {
+  const hanoi = [21.0285, 105.8542];
 
-  const primaryContact = useMemo(
-    () => contacts.find((c) => c.id === selectedContactId) || contacts[0],
-    [contacts, selectedContactId]
-  );
+  map = L.map('map', { zoomControl: false }).setView(hanoi, 14);
 
-  const sendActivity = (text) => {
-    const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    setActivities((prev) => [{ id: Date.now(), type: text, time }, ...prev.slice(0, 5)]);
-  };
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
 
-  const triggerSos = () => {
-    setSosSent(true);
-    setShowNotification(true);
-    setShowSosModal(false);
-    setBanner(`SOS sent to ${primaryContact.name}`);
-    sendActivity(`SOS alert sent to ${primaryContact.name}`);
-    window.setTimeout(() => setShowNotification(false), 2500);
-  };
+  marker = L.marker(hanoi)
+    .addTo(map)
+    .bindPopup('urrent location');
 
-  const simulateRide = () => {
-    const nextSpeed = speed >= 60 ? 18 : speed + 6;
-    const nextSatellites = satellites >= 16 ? 9 : satellites + 1;
-    setSpeed(nextSpeed);
-    setSatellites(nextSatellites);
-    setBanner('Ride activity refreshed');
-    sendActivity(`Speed updated to ${nextSpeed} km/h`);
-  };
+  drawHospitalRoute(hanoi);
 
-  const callContact = () => {
-    setBanner(`Calling ${primaryContact.name}...`);
-    sendActivity(`Emergency call started to ${primaryContact.name}`);
-    setShowNotification(true);
-    window.setTimeout(() => setShowNotification(false), 2000);
-  };
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const coords = [pos.coords.latitude, pos.coords.longitude];
+      map.setView(coords, 15);
+      marker.setLatLng(coords);
+      drawHospitalRoute(coords);
 
-  const safetyCheck = () => {
-    setBanner('Safety check link shared');
-    sendActivity('Safety check link sent');
-    setShowNotification(true);
-    window.setTimeout(() => setShowNotification(false), 2000);
-  };
+      state.banner = 'Live GPS connected';
+      addActivity('Live location loaded');
 
-  return (
-    <div className="min-h-screen w-full bg-[#f3e0de] p-4 md:p-8">
-      <div className="mx-auto flex max-w-5xl items-start justify-center gap-10">
-        <div className="relative w-[340px] rounded-[42px] bg-black p-[10px] shadow-2xl">
-          <div className="absolute left-1/2 top-2 z-30 h-7 w-36 -translate-x-1/2 rounded-b-3xl bg-black" />
-          <div className="relative overflow-hidden rounded-[34px] bg-[#f6f7fb] px-4 pb-4 pt-5">
-            <div className="mt-1 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-700">
-                  <Shield className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-[22px] font-extrabold leading-none text-slate-800">Ride Guard</div>
-                  <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500">
-                    <div className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      System Active
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="h-2 w-2 rounded-full bg-blue-500" />
-                      GPS Connected
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowSettings(true)}
-                className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100"
-              >
-                <Bell className="h-5 w-5" />
-              </button>
-            </div>
+      if (typeof pos.coords.speed === 'number' && pos.coords.speed >= 0) {
+        state.speed = Math.round(pos.coords.speed * 3.6);
+      }
 
-            <div className="mt-4 overflow-hidden rounded-[24px] bg-white p-3 shadow-sm ring-1 ring-slate-200">
-              <div className="relative h-44 overflow-hidden rounded-[20px] bg-gradient-to-br from-blue-100 via-slate-100 to-blue-50">
-                <div className="absolute inset-0 opacity-70">
-                  <div className="absolute left-5 top-8 h-1 w-52 rotate-[18deg] rounded-full bg-slate-300" />
-                  <div className="absolute left-0 top-16 h-1 w-72 -rotate-[8deg] rounded-full bg-slate-300" />
-                  <div className="absolute left-10 top-28 h-1 w-60 rotate-[10deg] rounded-full bg-slate-300" />
-                  <div className="absolute left-24 top-3 h-32 w-1 rounded-full bg-slate-300" />
-                  <div className="absolute right-16 top-0 h-40 w-1 rounded-full bg-slate-300" />
-                </div>
-                <div className="absolute left-3 top-3 rounded-xl bg-white/90 px-3 py-2 shadow-sm">
-                  <div className="text-[14px] font-bold text-blue-700">You&apos;re Protected</div>
-                  <div className="text-[10px] text-slate-500">{banner}</div>
-                </div>
-                <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center">
-                  <div className="absolute h-20 w-20 rounded-full bg-blue-400/20 animate-ping" />
-                  <div className="absolute h-12 w-12 rounded-full bg-blue-500/30" />
-                  <div className="h-5 w-5 rounded-full bg-blue-600 ring-4 ring-white shadow-lg" />
-                </div>
-                <div className="absolute bottom-3 left-3 right-3 grid grid-cols-2 gap-3">
-                  <StatPill icon={Gauge} value={`${speed} km/h`} label="Current Speed" tone="blue" />
-                  <StatPill icon={Satellite} value={`${satellites} Satellites`} label="GPS Signal" tone="green" />
-                </div>
-              </div>
-            </div>
+      render();
+    }, () => {
+      state.banner = 'Using Hanoi default map';
+      drawHospitalRoute(hanoi);
+      render();
+    }, {
+      enableHighAccuracy: true,
+      timeout: 7000,
+      maximumAge: 2000
+    });
 
-            <div className="mt-4 rounded-[24px] bg-gradient-to-r from-red-500 to-orange-500 p-4 text-white shadow-md">
-              <div className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide">
-                <Siren className="h-4 w-4" /> Emergency SOS
-              </div>
-              <div className="mt-1 text-[12px] text-white/85">Long press to call for help & alert your contacts</div>
-              <SlideToSend onComplete={triggerSos} disabled={sosSent} />
-            </div>
+    navigator.geolocation.watchPosition((pos) => {
+      if (!state.gpsConnected) return;
 
-            <div className="mt-5 flex items-center justify-between">
-              <div className="text-[20px] font-extrabold text-slate-800">Quick Actions</div>
-              <button
-                onClick={() => setTab('activities')}
-                className="text-[12px] font-semibold text-blue-600"
-              >
-                View All
-              </button>
-            </div>
+      const coords = [pos.coords.latitude, pos.coords.longitude];
+      marker.setLatLng(coords);
+      drawHospitalRoute(coords);
+      map.panTo(coords, { animate: true, duration: 1.1 });
 
-            <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
-              <QuickAction
-                icon={Phone}
-                title="Call Contacts"
-                subtitle="3 People"
-                color="bg-blue-100 text-blue-700"
-                onClick={callContact}
-              />
-              <QuickAction
-                icon={Shield}
-                title="Safety Check"
-                subtitle="Share Live"
-                color="bg-indigo-100 text-indigo-700"
-                onClick={safetyCheck}
-              />
-              <QuickAction
-                icon={Bike}
-                title="Ride Record"
-                subtitle="Recording"
-                color="bg-orange-100 text-orange-700"
-                onClick={simulateRide}
-              />
-              <QuickAction
-                icon={Settings}
-                title="Settings"
-                subtitle="Customize"
-                color="bg-emerald-100 text-emerald-700"
-                onClick={() => setShowSettings(true)}
-              />
-            </div>
-
-            <div className="mt-5 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 text-[18px] font-extrabold text-slate-800">
-                    <Users className="h-5 w-5 text-blue-600" /> My Safe Contacts
-                  </div>
-                  <div className="text-[12px] text-slate-500">{contacts.length} people will be notified in case of emergency</div>
-                </div>
-                <button
-                  onClick={() => setShowManageContacts(true)}
-                  className="rounded-full bg-blue-50 px-3 py-1.5 text-[12px] font-semibold text-blue-700"
-                >
-                  Manage
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-200">
-              <div className="flex items-center justify-between">
-                <div className="text-[20px] font-extrabold text-slate-800">Today&apos;s Ride</div>
-                <button className="text-[12px] font-semibold text-blue-600">View History</button>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className="rounded-2xl bg-slate-50 p-3 text-center">
-                  <MapPin className="mx-auto h-5 w-5 text-blue-600" />
-                  <div className="mt-2 text-[18px] font-extrabold text-slate-800">24.8 km</div>
-                  <div className="text-[11px] text-slate-500">Distance</div>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-3 text-center">
-                  <Clock3 className="mx-auto h-5 w-5 text-emerald-600" />
-                  <div className="mt-2 text-[18px] font-extrabold text-slate-800">35 min</div>
-                  <div className="text-[11px] text-slate-500">Duration</div>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-3 text-center">
-                  <Gauge className="mx-auto h-5 w-5 text-orange-600" />
-                  <div className="mt-2 text-[18px] font-extrabold text-slate-800">42 km/h</div>
-                  <div className="text-[11px] text-slate-500">Avg Speed</div>
-                </div>
-              </div>
-            </div>
-
-            <AnimatePresence mode="wait">
-              {tab === 'activities' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  className="mt-5 rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-200"
-                >
-                  <div className="text-[18px] font-extrabold text-slate-800">Recent Activity</div>
-                  <div className="mt-3 space-y-3">
-                    {activities.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-xl bg-blue-100 p-2 text-blue-700">
-                            <Radio className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <div className="text-[13px] font-semibold text-slate-800">{item.type}</div>
-                            <div className="text-[11px] text-slate-500">RideGuard event log</div>
-                          </div>
-                        </div>
-                        <div className="text-[11px] text-slate-500">{item.time}</div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <BottomNav tab={tab} setTab={setTab} />
-          </div>
-        </div>
-
-        <div className="hidden max-w-md space-y-4 md:block">
-          <div className="rounded-3xl bg-white p-6 shadow-xl">
-            <div className="text-xl font-extrabold text-slate-800">Interactive functions included</div>
-            <div className="mt-3 space-y-2 text-sm text-slate-600">
-              <div>• Slide the SOS control to send an emergency alert</div>
-              <div>• Tap Call Contacts to simulate emergency calling</div>
-              <div>• Tap Safety Check to share a live check link</div>
-              <div>• Tap Ride Record to simulate live ride updates</div>
-              <div>• Manage contacts to change the primary SOS recipient</div>
-              <div>• Open settings to toggle system activity and GPS state</div>
-            </div>
-          </div>
-
-          <div className="rounded-3xl bg-slate-900 p-6 text-white shadow-xl">
-            <div className="text-lg font-bold">Current selected SOS contact</div>
-            <div className="mt-3 rounded-2xl bg-white/10 p-4">
-              <div className="text-base font-semibold">{primaryContact.name}</div>
-              <div className="text-sm text-slate-300">{primaryContact.phone}</div>
-              <div className="mt-2 inline-flex rounded-full bg-blue-500/20 px-2 py-1 text-xs text-blue-200">
-                {primaryContact.status}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {showNotification && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white shadow-2xl"
-          >
-            {banner}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showManageContacts && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.96, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.96, opacity: 0 }}
-              className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl"
-            >
-              <div className="flex items-center justify-between">
-                <div className="text-lg font-extrabold text-slate-800">Manage Contacts</div>
-                <button onClick={() => setShowManageContacts(false)} className="text-slate-400">Close</button>
-              </div>
-              <div className="mt-4 space-y-3">
-                {contacts.map((contact) => {
-                  const active = selectedContactId === contact.id;
-                  return (
-                    <button
-                      key={contact.id}
-                      onClick={() => {
-                        setSelectedContactId(contact.id);
-                        setBanner(`Primary contact set to ${contact.name}`);
-                        sendActivity(`Primary contact changed to ${contact.name}`);
-                        setShowManageContacts(false);
-                        setShowNotification(true);
-                        window.setTimeout(() => setShowNotification(false), 2200);
-                      }}
-                      className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left ring-1 ${
-                        active ? 'bg-blue-50 ring-blue-200' : 'bg-slate-50 ring-slate-200'
-                      }`}
-                    >
-                      <div>
-                        <div className="font-semibold text-slate-800">{contact.name}</div>
-                        <div className="text-sm text-slate-500">{contact.phone}</div>
-                      </div>
-                      {active && <div className="text-xs font-bold text-blue-600">Selected</div>}
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showSettings && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
-          >
-            <motion.div
-              initial={{ y: 16, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 16, opacity: 0 }}
-              className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl"
-            >
-              <div className="flex items-center justify-between">
-                <div className="text-lg font-extrabold text-slate-800">Settings</div>
-                <button onClick={() => setShowSettings(false)} className="text-slate-400">Close</button>
-              </div>
-              <div className="mt-5 space-y-4">
-                <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                  <div>
-                    <div className="font-semibold text-slate-800">System Active</div>
-                    <div className="text-sm text-slate-500">Enable continuous ride protection</div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSystemActive((v) => !v);
-                      setBanner(systemActive ? 'System paused' : 'System active');
-                      sendActivity(systemActive ? 'System deactivated' : 'System activated');
-                    }}
-                    className={`h-7 w-12 rounded-full p-1 transition ${systemActive ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`h-5 w-5 rounded-full bg-white transition ${systemActive ? 'translate-x-5' : ''}`} />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                  <div>
-                    <div className="font-semibold text-slate-800">GPS Connected</div>
-                    <div className="text-sm text-slate-500">Use live location and speed</div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setGpsConnected((v) => !v);
-                      setBanner(gpsConnected ? 'GPS disconnected' : 'GPS connected');
-                      sendActivity(gpsConnected ? 'GPS disconnected' : 'GPS connected');
-                    }}
-                    className={`h-7 w-12 rounded-full p-1 transition ${gpsConnected ? 'bg-blue-500' : 'bg-slate-300'}`}
-                  >
-                    <div className={`h-5 w-5 rounded-full bg-white transition ${gpsConnected ? 'translate-x-5' : ''}`} />
-                  </button>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowSettings(false);
-                    setShowSosModal(true);
-                  }}
-                  className="flex w-full items-center justify-between rounded-2xl bg-rose-50 px-4 py-3 text-rose-600"
-                >
-                  <span className="font-semibold">Open Emergency Actions</span>
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showSosModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 p-4 md:items-center"
-          >
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
-              className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl"
-            >
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-rose-100 p-3 text-rose-600">
-                  <HeartPulse className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="text-lg font-extrabold text-slate-800">Emergency Actions</div>
-                  <div className="text-sm text-slate-500">Choose the fastest response</div>
-                </div>
-              </div>
-              <div className="mt-4 space-y-3">
-                <button
-                  onClick={callContact}
-                  className="flex w-full items-center justify-between rounded-2xl bg-blue-50 px-4 py-3 text-blue-700"
-                >
-                  <span className="font-semibold">Call {primaryContact.name}</span>
-                  <Phone className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={triggerSos}
-                  className="flex w-full items-center justify-between rounded-2xl bg-rose-50 px-4 py-3 text-rose-600"
-                >
-                  <span className="font-semibold">Send SOS Alert</span>
-                  <Siren className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setShowSosModal(false)}
-                  className="w-full rounded-2xl bg-slate-100 px-4 py-3 font-semibold text-slate-600"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+      if (typeof pos.coords.speed === 'number' && pos.coords.speed >= 0) {
+        state.speed = Math.round(pos.coords.speed * 3.6);
+        state.avgSpeed = Math.round((state.avgSpeed + state.speed) / 2);
+        render();
+      }
+    }, () => {}, {
+      enableHighAccuracy: true,
+      timeout: 8000,
+      maximumAge: 2000
+    });
+  }
 }
+
+    render();
+    setupSlider();
+    setupTripleTap();
+    initMap();
+  </script>
+</body>
+</html>
