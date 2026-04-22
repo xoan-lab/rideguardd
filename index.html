@@ -39,13 +39,15 @@
       color: var(--text);
     }
 
-  
 
     .phone-screen {
-  width: 100vw;
-  height: 100vh;
-  border-radius: 0;
-}
+      width: 390px;
+      height: 844px;
+      border-radius: 34px;
+      overflow: hidden;
+      background: var(--screen);
+      position: relative;
+    }
 
     .statusbar {
       height: 44px;
@@ -66,30 +68,15 @@
     }
 
     .screen {
-  position: absolute;
-  inset: 0;
-  padding: 10px 14px 16px;
-  overflow-y: auto;
-  background: var(--screen);
+      position: absolute;
+      inset: 0;
+      display: none;
+      padding: 10px 14px 16px;
+      overflow-y: auto;
+      background: var(--screen);
+    }
 
-  transform: translateX(100%);
-  transition: transform .35s cubic-bezier(.4,0,.2,1);
-  pointer-events: none;
-}
-
-    .screen.active {
-  transform: translateX(0);
-  pointer-events: auto;
-  z-index: 2;
-}
-
-.screen.slide-out-left {
-  transform: translateX(-100%);
-}
-
-.screen.slide-out-right {
-  transform: translateX(100%);
-}
+    .screen.active { display: block; }
 
     .toprow {
       display: flex;
@@ -191,8 +178,19 @@
     .map-protect small { color: var(--muted); font-size: 11px; }
 
     .pulse {
-  display: none;
-}
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: var(--blue);
+      border: 4px solid rgba(255,255,255,.95);
+      box-shadow: 0 0 0 14px rgba(59,130,246,.16);
+      z-index: 450;
+      pointer-events: none;
+    }
 
     .map-stats {
       position: absolute;
@@ -645,10 +643,12 @@
           </div>
           <div class="emergency-text">Stay calm. RideGuard is notifying your trusted contact and preparing emergency assistance.</div>
           <div class="emergency-buttons">
-            <button class="emergency-btn emergency-safe" onclick="endCallingOverlay()">End Call</button>
+            <button class="emergency-btn emergency-safe" onclick="endCallingOverlay()">End Call Screen</button>
           </div>
         </div>
       </div>
+
+
 
       <div class="screens">
         <section class="screen active" id="screen-home">
@@ -937,7 +937,7 @@
       selectedContact: 0,
       contacts: [
         { name: 'Mom', phone: '+84 123 456 789', status: 'Primary' },
-        { name: 'Bu', phone: '+84 912 555 222', status: 'Backup' },
+        { name: 'Linh', phone: '+84 912 555 222', status: 'Backup' },
         { name: 'Bryan', phone: '+84 905 111 444', status: 'Backup' }
       ],
       activities: [
@@ -973,7 +973,7 @@
       phoneScreen: document.getElementById('phoneScreen')
     };
 
-    let map, marker, routeLine, hospitalMarker;
+    let map, marker;
     let toastTimer = null;
     let countdownTimer = null;
     let countdownLeft = 10;
@@ -1157,13 +1157,7 @@
       els.callingOverlay.classList.remove('show');
       toast('Call screen closed');
     }
-function playAlertSound() {
-  const audio = new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg');
-  audio.volume = 1.0;
-  audio.play().catch(() => {
-    console.log('Audio autoplay blocked until user interaction');
-  });
-}
+
     function startSimulationTest(reason = 'Possible accident or health emergency detected') {
       if (!state.simulationCountdownEnabled) {
         toast('Simulation countdown is OFF');
@@ -1172,7 +1166,6 @@ function playAlertSound() {
       cancelEmergencyOverlay();
       countdownLeft = 10;
       showEmergencyOverlay(reason, countdownLeft);
-      playAlertSound();
       addActivity('Emergency countdown started');
       toast('Emergency countdown started');
       if (navigator.vibrate) navigator.vibrate([200,100,200,100,300]);
@@ -1214,7 +1207,7 @@ function playAlertSound() {
 
     function setupSlider() {
       const knob = els.sliderKnob;
-      const max = 265;
+      const max = 300;
       let dragging = false;
       let startX = 0;
       let currentX = 0;
@@ -1314,122 +1307,53 @@ function playAlertSound() {
     });
 
     function centerMapHanoi() {
-  if (!map || !marker) return;
-  const hanoi = [21.0285, 105.8542];
-  map.setView(hanoi, 14);
-  marker.setLatLng(hanoi);
-  drawHospitalRoute(hanoi);
-  state.banner = 'Map centered to Hanoi';
-  addActivity('Map centered to Hanoi');
-  render();
-  toast('Map centered to Hanoi');
-}
-
-function getNearestHospital(fromCoords) {
-  const hospitals = [
-    { name: 'Bach Mai Hospital', coords: [21.0008, 105.8426] },
-    { name: 'Viet Duc Hospital', coords: [21.0245, 105.8487] },
-    { name: 'Saint Paul Hospital', coords: [21.0335, 105.8352] },
-    { name: '108 Military Central Hospital', coords: [21.0184, 105.8622] },
-    { name: 'Hanoi Medical University Hospital', coords: [21.0029, 105.8284] }
-  ];
-
-  let nearest = hospitals[0];
-  let bestDistance = Number.POSITIVE_INFINITY;
-
-  hospitals.forEach((hospital) => {
-    const dLat = fromCoords[0] - hospital.coords[0];
-    const dLng = fromCoords[1] - hospital.coords[1];
-    const distance = Math.sqrt((dLat * dLat) + (dLng * dLng));
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      nearest = hospital;
+      if (!map || !marker) return;
+      const hanoi = [21.0285, 105.8542];
+      map.setView(hanoi, 14);
+      marker.setLatLng(hanoi);
+      state.banner = 'Map centered to Hanoi';
+      addActivity('Map centered to Hanoi');
+      render();
+      toast('Map centered to Hanoi');
     }
-  });
 
-  return nearest;
-}
+    function initMap() {
+      const hanoi = [21.0285, 105.8542];
+      map = L.map('map', { zoomControl: false }).setView(hanoi, 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      marker = L.marker(hanoi).addTo(map).bindPopup('RideGuard default location: Hanoi');
 
-function drawHospitalRoute(fromCoords) {
-  if (!map) return;
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          const coords = [pos.coords.latitude, pos.coords.longitude];
+          map.setView(coords, 15);
+          marker.setLatLng(coords);
+          state.banner = 'Live GPS connected';
+          addActivity('Live location loaded');
+          if (typeof pos.coords.speed === 'number' && pos.coords.speed >= 0) {
+            state.speed = Math.round(pos.coords.speed * 3.6);
+          }
+          render();
+        }, () => {
+          state.banner = 'Using Hanoi default map';
+          render();
+        }, { enableHighAccuracy: true, timeout: 7000, maximumAge: 2000 });
 
-  const hospital = getNearestHospital(fromCoords);
-
-  if (routeLine) map.removeLayer(routeLine);
-  if (hospitalMarker) map.removeLayer(hospitalMarker);
-
-  routeLine = L.polyline([fromCoords, hospital.coords], {
-    color: '#e45845',
-    weight: 5,
-    opacity: 0.85,
-    dashArray: '10, 10'
-  }).addTo(map);
-
-  hospitalMarker = L.marker(hospital.coords)
-    .addTo(map)
-    .bindPopup(`Nearest hospital: ${hospital.name}`);
-}
-
-function initMap() {
-  const hanoi = [21.0285, 105.8542];
-
-  map = L.map('map', { zoomControl: false }).setView(hanoi, 14);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
-
-  marker = L.marker(hanoi)
-    .addTo(map)
-    .bindPopup('urrent location');
-
-  drawHospitalRoute(hanoi);
-
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition((pos) => {
-      const coords = [pos.coords.latitude, pos.coords.longitude];
-      map.setView(coords, 15);
-      marker.setLatLng(coords);
-      drawHospitalRoute(coords);
-
-      state.banner = 'Live GPS connected';
-      addActivity('Live location loaded');
-
-      if (typeof pos.coords.speed === 'number' && pos.coords.speed >= 0) {
-        state.speed = Math.round(pos.coords.speed * 3.6);
+        navigator.geolocation.watchPosition((pos) => {
+          if (!state.gpsConnected) return;
+          const coords = [pos.coords.latitude, pos.coords.longitude];
+          marker.setLatLng(coords);
+          map.panTo(coords, { animate: true, duration: 1.1 });
+          if (typeof pos.coords.speed === 'number' && pos.coords.speed >= 0) {
+            state.speed = Math.round(pos.coords.speed * 3.6);
+            state.avgSpeed = Math.round((state.avgSpeed + state.speed) / 2);
+            render();
+          }
+        }, () => {}, { enableHighAccuracy: true, timeout: 8000, maximumAge: 2000 });
       }
-
-      render();
-    }, () => {
-      state.banner = 'Using Hanoi default map';
-      drawHospitalRoute(hanoi);
-      render();
-    }, {
-      enableHighAccuracy: true,
-      timeout: 7000,
-      maximumAge: 2000
-    });
-
-    navigator.geolocation.watchPosition((pos) => {
-      if (!state.gpsConnected) return;
-
-      const coords = [pos.coords.latitude, pos.coords.longitude];
-      marker.setLatLng(coords);
-      drawHospitalRoute(coords);
-      map.panTo(coords, { animate: true, duration: 1.1 });
-
-      if (typeof pos.coords.speed === 'number' && pos.coords.speed >= 0) {
-        state.speed = Math.round(pos.coords.speed * 3.6);
-        state.avgSpeed = Math.round((state.avgSpeed + state.speed) / 2);
-        render();
-      }
-    }, () => {}, {
-      enableHighAccuracy: true,
-      timeout: 8000,
-      maximumAge: 2000
-    });
-  }
-}
+    }
 
     render();
     setupSlider();
