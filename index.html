@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RideGuard AI</title>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     :root {
       --bg: #efd8d6;
@@ -30,18 +30,21 @@
     * { box-sizing: border-box; }
     html, body { margin: 0; }
     body {
-  margin:0;
-  background:white;
-  height:100vh;
-  width:100vw;
-  overflow:hidden;
-}
+      min-height: 100vh;
+      background: var(--bg);
+      font-family: Inter, Arial, sans-serif;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: var(--text);
+    }
 
 
-    .phone-screen {
+   .phone-screen {
   width: 100vw;
   height: 100vh;
   border-radius: 0;
+}
       overflow: hidden;
       background: var(--screen);
       position: relative;
@@ -1205,7 +1208,7 @@
 
     function setupSlider() {
       const knob = els.sliderKnob;
-      const max = 250;
+      const max = 300;
       let dragging = false;
       let startX = 0;
       let currentX = 0;
@@ -1292,7 +1295,7 @@
       const y = acc.y || 0;
       const z = acc.z || 0;
       const magnitude = Math.sqrt(x*x + y*y + z*z);
-      if (magnitude > 24 && !shakeCooldown) {
+      if (magnitude > 26 && !shakeCooldown) {
         shakeCooldown = true;
         state.banner = 'Strong shake detected';
         addActivity(`Possible impact / shake event detected (${magnitude.toFixed(1)})`);
@@ -1303,22 +1306,7 @@
         setTimeout(() => { shakeCooldown = false; }, 1800);
       }
     });
-function playAlertSound() {
 
-  const audio = new Audio(
-    "https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"
-  );
-
-  audio.loop = true;   // lặp lại cho đến khi hết countdown
-  audio.volume = 1;
-
-  window.currentAlarm = audio;
-
-  audio.play().catch(() => {
-    console.log("Audio blocked until user interacts");
-  });
-
-}
     function centerMapHanoi() {
       if (!map || !marker) return;
       const hanoi = [21.0285, 105.8542];
