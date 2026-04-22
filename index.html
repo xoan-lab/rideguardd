@@ -40,11 +40,10 @@
     }
 
 
-   .phone-screen {
-  width: 100vw;
-  height: 100vh;
-  border-radius: 0;
-}
+    .phone-screen {
+      width: 390px;
+      height: 844px;
+      border-radius: 34px;
       overflow: hidden;
       background: var(--screen);
       position: relative;
@@ -1191,6 +1190,23 @@
       render();
     }
 
+function playAlertSound() {
+
+  const audio = new Audio(
+    "https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"
+  );
+
+  audio.loop = true;   // lặp lại cho đến khi hết countdown
+  audio.volume = 1;
+
+  window.currentAlarm = audio;
+
+  audio.play().catch(() => {
+    console.log("Audio blocked until user interacts");
+  });
+
+}
+
     function forceSendSOS() {
       if (countdownTimer) {
         clearInterval(countdownTimer);
@@ -1295,7 +1311,7 @@
       const y = acc.y || 0;
       const z = acc.z || 0;
       const magnitude = Math.sqrt(x*x + y*y + z*z);
-      if (magnitude > 26 && !shakeCooldown) {
+      if (magnitude > 18 && !shakeCooldown) {
         shakeCooldown = true;
         state.banner = 'Strong shake detected';
         addActivity(`Possible impact / shake event detected (${magnitude.toFixed(1)})`);
